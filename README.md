@@ -3,7 +3,7 @@
 This repository contains the implementation of Corteva's surplus unit 
 allocation problem, done by Saman Cyrus.
 
-The code is located inside `main.py` file. There are three methods that
+The code is located inside `main.py` file. The index file for the webpage of this project is located at `index.html`. There are three methods that
 are tried to solve this problem:
 - Robust optimization method using `pulp`.
 - Robust optimization method using `pyomo`.
