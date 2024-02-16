@@ -1,0 +1,13 @@
+# Environment for corteva project. Packages are specified in requirements.txt.
+name: corteva
+dependencies:
+    # Python and pip.
+    - python=3.9.*
+    - pip
+
+    # Conda-only packages.
+    - glpk
+
+    # Delegate to pip.
+    - pip:
+        - -r requirements.txt
