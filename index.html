@@ -1,0 +1,409 @@
+<!doctype html>
+<html>
+
+<head>
+  <title>Project Title</title>
+  <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" media="screen" rel="stylesheet" type="text/css" />
+  <link href="web_page/css/frame.css" media="screen" rel="stylesheet" type="text/css" />
+  <link href="web_page/css/controls.css" media="screen" rel="stylesheet" type="text/css" />
+  <link href="web_page/css/custom.css" media="screen" rel="stylesheet" type="text/css" />
+  <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+  <link href='https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300,700' rel='stylesheet' type='text/css'>
+  <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700" rel="stylesheet">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script src="web_page/js/menu.js"></script>
+  <script src="web_page/js/footer.js"></script>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=default'></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script type="text/javascript" id="MathJax-script" async  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+  <style>
+    .menu-index {
+      color: rgb(255, 255, 255) !important;
+      opacity: 1 !important;
+      font-weight: 700 !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="menu-container"></div>
+  <div class="content-container">
+    <!-------------------------------------------------------------------------------------------->
+    <!--Start Header-->
+    <div class="banner" style="background: url('web_page/img/Manufacturing-Facility.webp') no-repeat center; background-size: cover; height: 300px;"></div>
+    <div class="banner">
+      <div class="banner-table flex-column">
+        <div class="flex-row">
+          <div class="flex-item flex-column">
+            <h2 class="add-top-margin-small">Corteva's surplus unit allocation problem</h2>
+            <p class="text">
+              This is the webpage for the surplus unit allocation problem, submitted by Corteva. The goal of the project is to identify the ideal surplus quantity to be added to 
+              the demand forecst of each product.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--End Header-->
+    <!-------------------------------------------------------------------------------------------->
+    <div class="content">
+      <div class="content-table flex-column">
+        <!-------------------------------------------------------------------------------------------->
+        <!--Start Intro-->
+        <div class="flex-row">
+          <div class="flex-item flex-column">
+            <!-- <img class="image" src="img/dummay-img.png"> -->
+          </div>
+          <div class="flex-item flex-column">
+            <p class="text text-large">
+            </p>
+          </div>
+        </div>
+        <div class="flex-row">
+          <div class="flex-item flex-column">
+            <h3>Table of Content</h3>
+            <ul>
+              <li><a href="#problem-description">Problem Description</a></li>
+              <li><a href="#robust-opt">Robust Optimization formulation</a></li>
+              <li><a href="#two-stage">Two-stage stochastic programming formulation</a></li>
+              <li><a href="#solution">Solving the problem using python.</a></li>
+            </ul>
+          </div>
+        </div>
+        <!--End Intro-->
+        <!-------------------------------------------------------------------------------------------->
+        <!--Start-->
+        <div class="flex-row">
+          <div class="flex-item flex-column">
+            <h2 id="problem-description">Problem Description</h2>
+            <hr>
+            <p class="text">
+                Given information in this project:
+                <ul>
+                    <li><b>Goal:</b> To identify the ideal surplus quantity to be added to the demand
+                        forecast of each product within the production plan.
+                    </li>
+                    <li>
+                        <b>Criterion for desirability of the goal:</b> maximize profit margins.
+                    </li>
+                    <li>
+                        <b>Available data for each product:</b>
+                        <ul>
+                            <li>
+                                Estimated demand.
+                            </li>
+                            <li>
+                                The distribution reflecting demand variability.
+                            </li>
+                            <li>
+                                The margin per unit (calculated as net price minus cost).
+                            </li>
+                            <li>
+                                The cost of goods sold (COGS) representing production costs.
+                            </li>
+                            <li>
+                                Capacity constraints (defined as the maximum 
+                                percentage of demand that can be added as surplus).
+                            </li>
+                            <li>
+                                A substitutability group number that 
+                                indicates which products can be substituted for one another.
+                            </li>
+                        </ul>                        
+                    </li>
+                    <li>
+                        <b>Constraints of the problem:</b>
+                        <ul>
+                            <li>
+                                The surplus quantity added to each product's demand must not surpass its designated capacity limit.
+                            </li>
+                            <li>
+                                The aggregate surplus quantity across all products should not exceed the total demand for all products, adjusted by a macro target percentage. This macro target percentage is an adjustable input parameter, ranging between 10% and 50%.
+                            </li>
+                            <li>
+                                For products classified within the same substitutability group, it's important to maintain adequate total surplus quantities. This approach aims to mitigate the risk of lost sales by leveraging the substitutability of products within these groups, ensuring that demand can be met even if specific products are over or undersupplied.
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+                The calculation of actual sales is obtained via:
+        
+                $${S_p = D_p \times \sigma(D_p)}$$
+        <!--End-->
+        <!-------------------------------------------------------------------------------------------->
+        <!--Start Robust Optimization-->
+        <div class="flex-row">
+          <div class="flex-item flex-column">
+            <h2 id="robust-opt">Robust Optimization formulation</h2>
+            <hr>
+            <p class="text">
+              The first way to solve this problem is to model it as a robust optimization problem, i.e.,
+              \begin{align}
+              &\max\sum\limits_{p=1}^P M_p.x_p\\
+              x_p &\le C_p, \quad \forall p\\
+               D_p(1+x_p) &\ge (1+\sigma_p)D_p, \quad \forall p\\
+              (1+x_p)D_p &\le D_p (1+\epsilon), \quad \forall p\\
+              (1+x_p)D_p &\ge D_p (1-\epsilon), \quad \forall p\\
+              \sum\limits_{p=1}^P x_p D_p &\le \mu \sum\limits_{p=1}^P D_p,\\
+              0.1&\le\mu\le 0.5\\
+              \sum\limits_{p\in G} x_p D_p &\ge MinTotalSurplus_G \sum\limits_{p\in G}D_p\\
+              \end{align}
+            </p>
+            
+            <p class="text">
+              where \(x_p\) is the surplus value of product \(p\), \(M_p\) is the Margin for product \(p\), \(C_p\) is the capacity for product \(p\),
+              \(D_p\) is the estimated demand for product \(p\), \(\mu\) is the adjustable macro target percentage,
+              \(\sigma_p\) is the variance of Burr12 distribution which product \(p\) belongs to, and <it>MinTotalSurplus</it> is the minimum
+              total surplus quantity required for subsitutability group \(G\).
+            </p>
+          </div>
+        </div>
+        <!--End Text with Buttons-->
+        <!-------------------------------------------------------------------------------------------->
+        <!--Start Two-stage stochastic programming formulation-->
+        <div class="flex-row">
+          <div class="flex-item flex-column">
+            <h2 id="two-stage">Two-stage stochastic programming formulation</h2>
+            <hr>
+            <p class="text">
+              Another way of modelling this problem is two-stage stochastic programming problem. We can write
+              \begin{align}
+              &\max\sum\limits_{p=1}^P M_p x_p\\
+                x_p &\le C_p, \quad \forall p\\
+                \sum\limits_{p=1}^P x_p D_p &\le \sum\limits_{p=1}^P\mu D_p \\
+                \sum\limits_{p=G} x_p D_p &\ge MinTotalSurplus_G \sum\limits_{p=G} D_p\\
+                D_p \sigma_p &\le (1+x_p) D_p\\
+                x_p &= \sum_{vg\in vG} y_{p,vg},\quad \forall p 
+              \end{align}
+              Here we've sampled Burr distribution and  \(vG\) is these variance groups.
+            </p>
+          </div>
+        </div>
+        <!--End Text with Images and Image buttons-->
+        <!-------------------------------------------------------------------------------------------->
+        <!--Start Text around Image-->
+        <div class="flex-row">
+          <div class="flex-item flex-column">
+            <h2 id="solution">Solving the problem using python</h2>
+            <hr>
+            <p class="text">
+                <p>
+                    To solve the problem described above, we code it up in python. We have used three python libraries to solve this problem.
+                The robust optimization is solved by <b>pulp</b> package and <b>pyomo</b>  package. To solve the two-stage
+                stochastic optimizaiton problem, we've used <b>mpisppy</b>. </p>
+                <p>
+                    The problem has different parameters which can affect the optimization problem.
+                    In the code, we've considered:
+                    <ul>
+                        <li>
+                            <b>MAX_CAPACITY</b> to have values 0.15, 0.5, 1. This parameter is what we want to  subsitutute "NaN" values in "Capacity" column.
+                        </li>
+                        <li>
+                            <b>MACRO_TARGET_PERCENTAGE</b> to have values 0.3, 0.4, 0.5. This parameter is the <i>Adjustable macro target percentage</i> mentioned in the problem Description.
+                        </li>
+                        <li>
+                            <b>SUB_LIMIT_BOUND</b> to have values 0.01, 0.05, 0.1. This parameter is the Substitutability limit discussed in the problem description. We want the total surplus to be bigger than this factor times the total demand.
+                        </li>
+                    </ul>
+                </p>
+                <p>
+                    The results can be seen in the table below. The results show not as much difference using different parameters for the optimization problem.
+                </p>
+                
+                <table border="1" class="dataframe" width="300">
+                    <thead>
+                      <tr style="text-align: left;">
+                        <th></th>
+                        <th>pulp_sol</th>
+                        <th>pyomo_sol</th>
+                        <th>mpisppy_sol</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th>0</th>
+                        <td>11816</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>1</th>
+                        <td>11799</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>2</th>
+                        <td>11845</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>3</th>
+                        <td>11816</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>4</th>
+                        <td>11799</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>5</th>
+                        <td>11845</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>6</th>
+                        <td>11816</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>7</th>
+                        <td>11799</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>8</th>
+                        <td>11845</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>9</th>
+                        <td>11816</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>10</th>
+                        <td>11799</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>11</th>
+                        <td>11845</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>12</th>
+                        <td>11816</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>13</th>
+                        <td>11799</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>14</th>
+                        <td>11845</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>15</th>
+                        <td>11816</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>16</th>
+                        <td>11799</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>17</th>
+                        <td>11845</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>18</th>
+                        <td>11816</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>19</th>
+                        <td>11799</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>20</th>
+                        <td>11845</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>21</th>
+                        <td>11816</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>22</th>
+                        <td>11799</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>23</th>
+                        <td>11845</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>24</th>
+                        <td>11816</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>25</th>
+                        <td>11799</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                      <tr>
+                        <th>26</th>
+                        <td>11845</td>
+                        <td>11035</td>
+                        <td>11035</td>
+                      </tr>
+                    </tbody>
+                  </table>
+            </p>
+          </div>
+        </div>
+        <!--End Text around Image-->
+        <!-------------------------------------------------------------------------------------------->
+        <!--Start Credits-->
+        <div class="flex-row">
+          <div class="flex-item flex-item-stretch flex-column">
+            <p class="text text-small text-italic add-top-margin-large">
+              Project done by: <span class="highlight-text">Saman Cyrus, cyrus2@wisc.edu</span>
+            </p>
+          </div>
+        </div>
+        <!--End Credits-->
+        <!-------------------------------------------------------------------------------------------->
+      </div>
+    </div>
+    <div class="footer-container"></div>
+  </div>
+</body>
+
+</html>
