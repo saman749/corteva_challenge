@@ -130,6 +130,18 @@
                 The calculation of actual sales is obtained via:
         
                 $${S_p = D_p \times \sigma(D_p)}$$
+
+                <b>Similar problems:</b> The most challenging part of this problem seems to be the substitutability feature
+                which is rather unique. There are several papers and prior works that have considered multi-stage production with 
+                subsitutability feature. Two noticeable ones are:
+                <ul>
+                  <li>
+                    Rao, Uday S., Jayashankar M. Swaminathan, and Jun Zhang. "Multi-product inventory planning with downward substitution, stochastic demand and setup costs." IIE Transactions 36.1 (2004): 59-71.
+                  </li>
+                  <li>
+                    Khalilabadi, Seyed Mahdi Ghorashi, Seyed Hessameddin Zegordi, and Ehsan Nikbakhsh. "A multi-stage stochastic programming approach for supply chain risk mitigation via product substitution." Computers & Industrial Engineering 149 (2020): 106786.
+                  </li>
+                </ul>
         <!--End-->
         <!-------------------------------------------------------------------------------------------->
         <!--Start Robust Optimization-->
@@ -164,7 +176,7 @@
         <!--Start Two-stage stochastic programming formulation-->
         <div class="flex-row">
           <div class="flex-item flex-column">
-            <h2 id="two-stage">Two-stage stochastic programming formulation</h2>
+            <h2 id="two-stage">Two-stage stochastic programming formulation-formuation 1</h2>
             <hr>
             <p class="text">
               Another way of modelling this problem is two-stage stochastic programming problem. We can write
@@ -177,6 +189,43 @@
                 x_p &= \sum_{vg\in vG} y_{p,vg},\quad \forall p 
               \end{align}
               Here we've sampled Burr distribution and  \(vG\) is these variance groups.
+            </p>
+          </div>
+        </div>
+        <!-------------------------------------------------------------------------------------------->
+        <!--Different Two-stage stochastic programming formulation-->
+        <div class="flex-row">
+          <div class="flex-item flex-column">
+            <h2 id="two-stage">Two-stage stochastic programming formulation-formulation 2</h2>
+            <hr>
+            <p class="text">
+              There is another way to think about how to write this problem as a two-stage stochastic 
+              programming problem. In this method, we separate "production" from "sales". The fist stage problem decides what
+              products to produce (\(p_i\)) where \(i=1,\cdots,P\), and the second stage problem decides given that much
+              production, how to substitute them to make the most profit. To show this, we distinguish between
+              "costs" due to production (using COGS) and "profit" due to selling products (using the concept of
+              Margin). Notice that production of product $p_i$ describes total production including the surplus
+              , therefore the first stage problem, therefore, can be written as:
+              \begin{align}
+              &\min\sum\limits_{p=1}^P COGS_i p_i - \mathbb{E}_D (Q(p,D)) \\
+                p_i &\le (1+C_i), \quad i=1,\cdots, P\\
+                p_i &\ge 0, \quad i=1,\cdots, P
+              \end{align}
+              where the second stage problem can be written as:
+              \begin{align}
+              Q(p,D) &= min \Big(-\sum\limits_{i=1}^P S_i M_i - \sum\limits_{j=1}^PS_{ji} M_i\Big)\\
+              \sum\limits_{p=1}^P p_i &\le (1+\mu)\sum\limits_{p=1}^P D_i \\
+              0.1 &\le \mu \le 0.5\\
+              S_i + \sum\limits_{j=1}^P S_{ij} &\ge D_i \sigma(D_i), \quad i=0,\cdots,P\\
+              P_j &\ge S_{ij} \ge 0, \quad j=0,\cdots,P
+              \end{align}
+              where \(S_i\) is the amount of item \(i\) sold, and \(S_{ij}\) is the amount of item \(i\) that is substituted by item \(j\). In this formulation, the goal is to choose the decision variables in a way that we minimize
+              the cost. In the first stage, we decide how much of each product to produce (includes surplus).
+              This costs us \(COGS_i p_i\) for product \(p_i\). The only constraint at this stage is that
+              the production, \(p_i\), which includes surplus values, should not exceed the capcity of producing
+              surplus for that product. In the second stage, we assume that the decision is made to produce 
+              \(p_i\) for product with index \(i\). Then we need to decide what to sell in a way that we make
+              the most profit. 
             </p>
           </div>
         </div>
