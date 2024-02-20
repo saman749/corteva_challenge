@@ -173,6 +173,49 @@
         </div>
         <!--End Text with Buttons-->
         <!-------------------------------------------------------------------------------------------->
+        <!--Different Two-stage stochastic programming formulation-->
+        <div class="flex-row">
+          <div class="flex-item flex-column">
+            <h2 id="two-stage">Two-stage stochastic programming formulation with substitution written as a constraint for the entire group</h2>
+            <hr>
+            <p class="text">
+              There is another way to think about how to write this problem as a two-stage stochastic 
+              programming problem. In this method, we separate "production" from "sales". The fist stage problem decides what
+              products to produce (\(p_i\)) where \(i=1,\cdots,P\), and the second stage problem decides given that much
+              production, how to substitute them to make the most profit. To show this, we distinguish between
+              "costs" due to production (using COGS) and "profit" due to selling products (using the concept of
+              Margin). Notice that production of product $p_i$ describes total production including the surplus
+              , therefore the first stage problem, therefore, can be written as:
+              \begin{align}
+              &\min\sum\limits_{i=1}^P COGS_i p_i + \mathbb{E}_D (Q(p,D)) \\
+                p_i &\le (1+C_i)e_i, \quad i=1,\cdots, P\\
+                p_i &\ge 0, \quad i=1,\cdots, P
+              \end{align}
+              where the second stage problem can be written as:
+              \begin{align}
+              Q(p,D) &= min \Big(-\sum\limits_{i=1}^P s_i M_i\Big)\\
+              \sum\limits_{i=1}^P p_i &\le (1+\mu)\sum\limits_{i=1}^P D_i \\
+              0.1 &\le \mu \le 0.5\\
+              \sum\limits_{i\in g}D_i &\le \sum\limits_{i\in g}s_i, \quad \forall g\in G\\
+              p_i &\ge s_{i} \ge 0, \quad i=1,\cdots,P
+              \end{align}
+              where \(s_i\) is the amount of item \(i\) sold. In this formulation, the goal is to choose the decision variables in a way that we minimize
+              the cost. Estimated amount of demand is shown with \(e_i\) and is used in the first stage. In the first stage, we decide how much of each product to produce (includes surplus).
+              This costs us \(COGS_i p_i\) for product \(p_i\). The only constraint at this stage is that
+              the production, \(p_i\), which includes surplus values, should not exceed the capcity of producing
+              surplus for that product.
+            </p>
+            <p>
+              In the second stage, we assume that the decision is made to produce 
+              \(p_i\) for product with index \(i\). Then we need to decide what to sell in a way that we make
+              the most profit. We are bouded to produce less that a total percentage \(\mu\) of the total demand.
+              The other bound for this problem is that the amount we sell should be as much as the demand, but since we have 
+              degree of freedom to substitute the demand with other products in the same group, rather than writing 
+              \(D_i \le s_i\), we write \(\sum_{i\in g} D_i \le \sum_{i \in g} s_i\) for all groups \(g\) in the set of Groups, \(G = \{1,\cdots,6\}\).
+            </p>
+          </div>
+        </div>
+        <!-------------------------------------------------------------------------------------------->
         <!--Start Two-stage stochastic programming formulation-->
         <div class="flex-row">
           <div class="flex-item flex-column">
@@ -192,43 +235,7 @@
             </p>
           </div>
         </div>
-        <!-------------------------------------------------------------------------------------------->
-        <!--Different Two-stage stochastic programming formulation-->
-        <div class="flex-row">
-          <div class="flex-item flex-column">
-            <h2 id="two-stage">Two-stage stochastic programming formulation-formulation 2</h2>
-            <hr>
-            <p class="text">
-              There is another way to think about how to write this problem as a two-stage stochastic 
-              programming problem. In this method, we separate "production" from "sales". The fist stage problem decides what
-              products to produce (\(p_i\)) where \(i=1,\cdots,P\), and the second stage problem decides given that much
-              production, how to substitute them to make the most profit. To show this, we distinguish between
-              "costs" due to production (using COGS) and "profit" due to selling products (using the concept of
-              Margin). Notice that production of product $p_i$ describes total production including the surplus
-              , therefore the first stage problem, therefore, can be written as:
-              \begin{align}
-              &\min\sum\limits_{p=1}^P COGS_i p_i - \mathbb{E}_D (Q(p,D)) \\
-                p_i &\le (1+C_i), \quad i=1,\cdots, P\\
-                p_i &\ge 0, \quad i=1,\cdots, P
-              \end{align}
-              where the second stage problem can be written as:
-              \begin{align}
-              Q(p,D) &= min \Big(-\sum\limits_{i=1}^P S_i M_i - \sum\limits_{j=1}^PS_{ji} M_i\Big)\\
-              \sum\limits_{p=1}^P p_i &\le (1+\mu)\sum\limits_{p=1}^P D_i \\
-              0.1 &\le \mu \le 0.5\\
-              S_i + \sum\limits_{j=1}^P S_{ij} &\ge D_i \sigma(D_i), \quad i=0,\cdots,P\\
-              P_j &\ge S_{ij} \ge 0, \quad j=0,\cdots,P
-              \end{align}
-              where \(S_i\) is the amount of item \(i\) sold, and \(S_{ij}\) is the amount of item \(i\) that is substituted by item \(j\). In this formulation, the goal is to choose the decision variables in a way that we minimize
-              the cost. In the first stage, we decide how much of each product to produce (includes surplus).
-              This costs us \(COGS_i p_i\) for product \(p_i\). The only constraint at this stage is that
-              the production, \(p_i\), which includes surplus values, should not exceed the capcity of producing
-              surplus for that product. In the second stage, we assume that the decision is made to produce 
-              \(p_i\) for product with index \(i\). Then we need to decide what to sell in a way that we make
-              the most profit. 
-            </p>
-          </div>
-        </div>
+        
         <!--End Text with Images and Image buttons-->
         <!-------------------------------------------------------------------------------------------->
         <!--Start Text around Image-->
