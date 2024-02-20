@@ -8,6 +8,7 @@ are tried to solve this problem:
 - Robust optimization method using `pulp`.
 - Robust optimization method using `pyomo`.
 - Two-stage stochastic programming method using `mpi-sppy`.
+- Two-stage stochastic programming method using `mpi-sppy` with substitution.
 
 The results are stored in a dataframe called `out` for different values of
 `max_capacity`, `macro`, and `sub`.
