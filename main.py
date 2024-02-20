@@ -127,7 +127,9 @@ def build_robust_optimization_pyomo_model(
             Variance group, Substitutability group.
         df_var: Dataframe including distribution parameters for demand variance
             groups.
-        substitutability_limit:
+        substitutability_limit: Substitutability limit for the substitutaion
+            constraint. The idea is that we need to have more than this limit
+            from products in a group.
         mu: Adjustable macro target percentage.
     
     Returns:
@@ -344,6 +346,17 @@ def build_two_stage_stochastic_model(
     Use 'mpi-sppy' package from Pyomo to solve the problem as a two-stage
     stochastic programming problem.
     Args:
+        variances: variance for the given distribution.
+        df_p: dataframe that includes information about variables. This
+            dataframe has the following columns: Demand, Margin, Capacity,
+            Variance group, Substitutability group.
+        df_var: Dataframe including distribution parameters for demand variance
+            groups.
+        substitutability_limit: Substitutability limit for the substitutaion
+            constraint. The idea is that we need to have more than this limit
+            from products in a group.
+        mu: Adjustable macro target percentage.
+
 
     Returns:
         mpi-sppy model.
@@ -494,8 +507,10 @@ def build_two_stage_stochastic_model(
             ) >= substitutability_limit[g-1] * sum(
                 self.demand[p] for p in group_products
             )
+    sub_groups = df_p["Substitutability group"].unique().tolist()
+    sub_groups = [int(j) for j in sub_groups]
     deterministic_model.substitutability_group_constraint = pyo.Constraint(
-        variance_groups,
+        sub_groups,
         rule=substitutability_group_constraint_rule,
     )
 
@@ -531,8 +546,193 @@ def build_two_stage_stochastic_model(
     return deterministic_model
 
 
+def build_two_stage_stochastic_model_with_substitution(
+    variances: float,
+    df_p: pd.DataFrame,
+    df_var: pd.DataFrame,
+    mu: float = 0.3,
+):
+    """
+    Formulate the problem as a two-stage stochastic programming with recourse
+    where production is stage one's variable, and in stage two, demand is the
+    random variable.
+
+    variances: variance for the given distribution (random variable).
+        df_p: dataframe that includes information about variables. This
+            dataframe has the following columns: Demand, Margin, Capacity,
+            Variance group, Substitutability group.
+        df_var: Dataframe including distribution parameters for demand variance
+            groups.
+        mu: Adjustable macro target percentage.
+
+    Returns:
+        mpi-sppy model.
+    """
+    # checking inputs.
+    if not df_p.shape[0] >= 1:
+        raise ValueError('Wrong dimension for products table.')
+    if not df_variance_group.shape[0] >= 1:
+        raise ValueError('Wrong dimension for variance table.')
+
+    products = df_p.index.tolist()
+    variance_groups = df_var['Demand Var Group'].tolist()
+
+    # Instantiate Pyomo model.
+    deterministic_model_subs = pyo.ConcreteModel()
+
+    # Parameters
+    deterministic_model_subs.demand = pyo.Param(
+        products,
+        initialize=dict(zip(
+            df_p.index,
+            df_p['Demand'],
+    )))
+    deterministic_model_subs.margin = pyo.Param(
+        products,
+        initialize=dict(zip(
+            df_p.index,
+            df_p['Margin'],
+    )))
+    deterministic_model_subs.COGS = pyo.Param(
+        products,
+        initialize=dict(zip(
+            df_p.index,
+            df_p['COGS'],
+    )))
+    deterministic_model_subs.Capacity = pyo.Param(
+        products,
+        initialize=dict(zip(
+            df_p.index,
+            df_p['Capacity'],
+    )))
+    deterministic_model_subs.Substitutability_group = pyo.Param(
+        products,
+        initialize=dict(zip(
+            df_p.index,
+            df_p['Substitutability group'],
+    )))
+
+    deterministic_model_subs.c = pyo.Param(
+        variance_groups,
+        initialize=dict(zip(
+            df_var['Demand Var Group'],
+            df_var['c'],
+    )))
+    deterministic_model_subs.d = pyo.Param(
+        variance_groups,
+        initialize=dict(zip(
+            df_var['Demand Var Group'],
+            df_var['d'],
+    )))
+    deterministic_model_subs.loc = pyo.Param(
+        variance_groups,
+        initialize=dict(zip(
+            df_var['Demand Var Group'],
+            df_var['loc'],
+    )))
+    deterministic_model_subs.scale = pyo.Param(
+        variance_groups,
+        initialize=dict(zip(
+            df_var['Demand Var Group'],
+            df_var['scale'],
+    )))
+
+    # Decision variable p = production, s = sales.
+    deterministic_model_subs.P = pyo.Var(
+        products,
+        domain=pyo.NonNegativeReals,
+    )
+    deterministic_model_subs.S = pyo.Var(
+        products,
+        domain=pyo.NonNegativeReals,
+    )
+    # Objective function
+    def sales_profit(self):
+        """sales_profit."""
+        return sum(deterministic_model_subs.S[i] * self.margin[i] for i in products)
+    def production_cost(self):
+        """Production cost."""
+        return sum(self.COGS[i] * deterministic_model_subs.P[i] for i in products)
+    deterministic_model_subs.SALES_PROFIT = pyo.Expression(rule=sales_profit)
+    deterministic_model_subs.PRODUCTION_COST = pyo.Expression(rule=production_cost)
+    deterministic_model_subs.obj = pyo.Objective(
+        expr=deterministic_model_subs.PRODUCTION_COST - deterministic_model_subs.SALES_PROFIT,
+        sense=pyo.minimize,
+    )
+
+    # Constraints
+    def capacity_constraint_rule(self,
+        i,
+    ):
+        """
+        capacity constraint, stating that the surplus quantity adde to each
+        product's demand must not surpass its designated capacity limit.
+
+        Args:
+            i: product index.
+
+        Returns:
+            capacity constraint.
+        """
+        return self.P[i] <= (1 + self.Capacity[i]) * self.demand[i]
+    deterministic_model_subs.capacity_constraint = pyo.Constraint(
+        products,
+        rule=capacity_constraint_rule,
+    )
+
+    def aggregate_surplus_constraint_rule(self):
+        """
+        The aggregate surplus quanityt across all products should not exceeed the
+        total demand for all products, adjusted by a macro target percentage.
+        """
+        return sum(self.P[i] for i in products) <= (1 + mu) * sum(self.demand[i] * variances for i in products)
+    deterministic_model_subs.aggregate_surplus_constraint = pyo.Constraint(
+        rule=aggregate_surplus_constraint_rule,
+    )
+
+    def substitutability_group_constraint_rule(self,
+        g,
+    ):
+        """
+        Substitutability rule: For products classified within the same
+        substitutability group, it is important to maintain adequate total surplus
+        quantitites.
+
+        Args:
+            g: group number.
+
+        Returns:
+            Substitutability constraint.
+        """
+        group_products = [
+            i for i in products if self.Substitutability_group[i] == g
+        ]
+        return sum(self.demand[i] * variances for i in group_products) >= sum(self.S[i] for i in group_products)
+    sub_groups = df_p["Substitutability group"].unique().tolist()
+    sub_groups = [int(j) for j in sub_groups]
+    deterministic_model_subs.substitutability_group_constraint = pyo.Constraint(
+        sub_groups,
+        rule=substitutability_group_constraint_rule,
+    )
+
+    # Target demand relationship constraint
+    def sell_product_constraint_rule(self,
+        i,
+    ):
+        """
+        p_i >= s_i >= 0
+        """
+        return self.S[i] <= self.P[i]
+    deterministic_model_subs.sell_product_constraint = pyo.Constraint(
+        products,
+        rule=sell_product_constraint_rule,
+    )
+    return deterministic_model_subs
+
+
 def scenario_creator(
     scenario_name: str = "good",
+    **kwargs,
 ) -> pyo.ConcreteModel:
     """
     Scenario creator for `mpisppy` package.
@@ -548,10 +748,8 @@ def scenario_creator(
 
     mpisppy_model = build_two_stage_stochastic_model(
         variances=variances,
-        df_p=df_products,
-        df_var=df_variance_group,
         substitutability_limit=sub_lim,
-        mu=macro,
+        **kwargs,
     )
     sputils.attach_root_node(
         mpisppy_model,
@@ -562,6 +760,34 @@ def scenario_creator(
     return mpisppy_model
 
 
+def scenario_creator_with_substitution(
+    scenario_name: str = "good",
+    **kwargs,
+) -> pyo.ConcreteModel:
+    """
+    Scenario creator for `mpisppy` package. Substitution considered.
+    """
+    if scenario_name == "good":
+        variances = 0.15
+    elif scenario_name == "average":
+        variances = 0.2
+    elif scenario_name == "bad":
+        variances = 0.45
+    else:
+        raise ValueError("Unrecognized scenario name")
+    mpisppy_model_subs = build_two_stage_stochastic_model_with_substitution(
+        variances=variances,
+        **kwargs,
+    )
+    sputils.attach_root_node(
+        mpisppy_model_subs,
+        mpisppy_model_subs.PRODUCTION_COST,
+        [mpisppy_model_subs.P],
+    )
+    mpisppy_model_subs._mpisppy_probability = 1.0 / 3
+    return mpisppy_model_subs
+
+
 # %% Main
 # Load and preprocess data.
 dff = pd.read_excel(DATA_FILE, index_col=0)
@@ -569,7 +795,8 @@ df_products = dff.transpose()
 df_variance_group = pd.read_excel(DATA_FILE, sheet_name=1)
 
 # parameters that the use can modify.
-MAX_CAPACITY = [0.15, 0.5, 1] # what to subsitutute "NaN" values in "Capacity" column with.
+MAX_CAPACITY = [0.15, 0.5, 1] # what to subsitutute "NaN" values in "Capacity"
+                              # column with.
 MACRO_TARGET_PERCENTAGE = [0.3, 0.4, 0.5]  # Adjustable macro target percentage
 SUB_LIMIT_BOUND = [0.01, 0.05, 0.1] # Substitutability limit.
 EPSILON = 0.1  # Robustness parameter
@@ -579,6 +806,7 @@ mpisppy_all_scenario_names = ["good", "average", "bad"]
 pulp_sol = []
 pyomo_sol = []
 mpisppy_sol = []
+mpisppy_sol_subs = []
 VERBOSE = 0
 
 for max_capacity in tqdm.tqdm(MAX_CAPACITY, disable=False):
@@ -599,7 +827,7 @@ for max_capacity in tqdm.tqdm(MAX_CAPACITY, disable=False):
                 substitutability_limit=sub_lim,
             )
             solver = pyo.SolverFactory('glpk')
-            results = solver.solve(model)
+            pyomo_results = solver.solve(model)
 
             # Use Pulp.
             pulp_model = build_robust_optimization_pulp_model(
@@ -609,22 +837,40 @@ for max_capacity in tqdm.tqdm(MAX_CAPACITY, disable=False):
                 mu=macro,
                 substitutability_limit=sub_lim,
             )
-
             pulp_model.solve(pulp.PULP_CBC_CMD(msg=False))
 
             # Use mpi-sppy to solve the problem as a two-stage stochastic
             # problem.
+            scenario_kwargs = {
+                'df_p': df_products,
+                'df_var':df_variance_group,
+                'mu':macro,
+            }
             ef = ExtensiveForm(
                 mpisppy_options,
                 mpisppy_all_scenario_names,
                 scenario_creator,
+                scenario_creator_kwargs=scenario_kwargs,
             )
             results = ef.solve_extensive_form()
             objval = ef.get_objective_value()
 
+            # Use mpi-sppy to solve two-stage stochastic program with
+            # substitution.
+            ef_subs = ExtensiveForm(
+                mpisppy_options,
+                mpisppy_all_scenario_names,
+                scenario_creator_with_substitution,
+                scenario_creator_kwargs=scenario_kwargs,
+            )
+            results_subs = ef_subs.solve_extensive_form()
+            objval_subs = ef_subs.get_objective_value()
+
             pulp_sol.append(int(pulp_model.objective.value()))
             pyomo_sol.append(int(pyo.value(model.obj)))
             mpisppy_sol.append(int(objval))
+            mpisppy_sol_subs.append(-int(objval_subs))
+
             if VERBOSE:
                 print("*** ------------------------------------- ***")
                 print("max capacity = ", max_capacity)
@@ -642,8 +888,15 @@ for max_capacity in tqdm.tqdm(MAX_CAPACITY, disable=False):
                     "Two-stage stochastic programming usin mpisppy:",
                     int(objval),
                 )
+                print(
+                    "Two-stage stochastic programming with substitution:",
+                    -int(objval_subs),
+                )
 
 
 out = pd.DataFrame(data={
-    'pulp_sol': pulp_sol, 'pyomo_sol': pyomo_sol, 'mpisppy_sol': mpisppy_sol,
+    'pulp_sol': pulp_sol,
+    'pyomo_sol': pyomo_sol,
+    'mpisppy_sol': mpisppy_sol,
+    'mpisppy_sol_subs': mpisppy_sol_subs,
 })
